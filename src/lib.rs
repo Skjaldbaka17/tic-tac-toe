@@ -30,67 +30,6 @@ pub enum CellState {
     O,
 }
 
-fn get_empty_board(env: &Env) -> Vec<CellState> {
-    let mut new_board = vec![env];
-    for _ in 1..10 {
-        new_board.push_back(CellState::Empty);
-    }
-    new_board
-}
-
-fn get_cell_state(game: &Game, pos: u32) -> CellState {
-    game.board.get_unchecked(pos).unwrap()
-}
-
-fn get_game_state(game: &Game, winner: CellState) -> GameState {
-    match winner {
-        CellState::X => return GameState::Winner(game.challenger.clone()),
-        CellState::O => return GameState::Winner(game.opposition.clone()),
-        _ => return GameState::InPlay,
-    }
-}
-
-fn get_current_state(game: &Game) -> GameState {
-    for tmp in 0..3 {
-        if get_cell_state(&game, tmp) != CellState::Empty
-            && get_cell_state(&game, tmp) == get_cell_state(&game, tmp + 3)
-            && get_cell_state(&game, tmp) == get_cell_state(&game, tmp + 6)
-        {
-            return get_game_state(game, get_cell_state(&game, tmp));
-        }
-
-        let tmp = tmp * 3;
-
-        if get_cell_state(&game, tmp) != CellState::Empty
-            && get_cell_state(&game, tmp) == get_cell_state(&game, tmp + 1)
-            && get_cell_state(&game, tmp) == get_cell_state(&game, tmp + 2)
-        {
-            return get_game_state(game, get_cell_state(&game, tmp));
-        }
-    }
-
-    if (get_cell_state(&game, 4) != CellState::Empty
-        && get_cell_state(&game, 0) == get_cell_state(&game, 4)
-        && get_cell_state(&game, 0) == get_cell_state(&game, 8))
-        || (get_cell_state(&game, 2) == get_cell_state(&game, 4)
-            && get_cell_state(&game, 2) == get_cell_state(&game, 6))
-    {
-        return get_game_state(game, get_cell_state(&game, 4));
-    }
-
-    for tmp in 0..9 {
-        if get_cell_state(game, tmp) == CellState::Empty {
-            return GameState::InPlay;
-        }
-    }
-
-    GameState::Draw
-}
-
-fn get_next_game_id(env: &Env) -> u32 {
-    env.data().get(GAME_COUNT).unwrap_or(Ok(0)).unwrap()
-}
-
 pub struct TicTacToeContract;
 
 pub trait TicTacToeTrait {
@@ -183,5 +122,67 @@ impl TicTacToeTrait for TicTacToeContract {
         }
     }
 }
+
+fn get_empty_board(env: &Env) -> Vec<CellState> {
+    let mut new_board = vec![env];
+    for _ in 1..10 {
+        new_board.push_back(CellState::Empty);
+    }
+    new_board
+}
+
+fn get_cell_state(game: &Game, pos: u32) -> CellState {
+    game.board.get_unchecked(pos).unwrap()
+}
+
+fn get_game_state(game: &Game, winner: CellState) -> GameState {
+    match winner {
+        CellState::X => return GameState::Winner(game.challenger.clone()),
+        CellState::O => return GameState::Winner(game.opposition.clone()),
+        _ => return GameState::InPlay,
+    }
+}
+
+fn get_current_state(game: &Game) -> GameState {
+    for tmp in 0..3 {
+        if get_cell_state(&game, tmp) != CellState::Empty
+            && get_cell_state(&game, tmp) == get_cell_state(&game, tmp + 3)
+            && get_cell_state(&game, tmp) == get_cell_state(&game, tmp + 6)
+        {
+            return get_game_state(game, get_cell_state(&game, tmp));
+        }
+
+        let tmp = tmp * 3;
+
+        if get_cell_state(&game, tmp) != CellState::Empty
+            && get_cell_state(&game, tmp) == get_cell_state(&game, tmp + 1)
+            && get_cell_state(&game, tmp) == get_cell_state(&game, tmp + 2)
+        {
+            return get_game_state(game, get_cell_state(&game, tmp));
+        }
+    }
+
+    if (get_cell_state(&game, 4) != CellState::Empty
+        && get_cell_state(&game, 0) == get_cell_state(&game, 4)
+        && get_cell_state(&game, 0) == get_cell_state(&game, 8))
+        || (get_cell_state(&game, 2) == get_cell_state(&game, 4)
+            && get_cell_state(&game, 2) == get_cell_state(&game, 6))
+    {
+        return get_game_state(game, get_cell_state(&game, 4));
+    }
+
+    for tmp in 0..9 {
+        if get_cell_state(game, tmp) == CellState::Empty {
+            return GameState::InPlay;
+        }
+    }
+
+    GameState::Draw
+}
+
+fn get_next_game_id(env: &Env) -> u32 {
+    env.data().get(GAME_COUNT).unwrap_or(Ok(0)).unwrap()
+}
+
 
 mod test;

@@ -52,7 +52,8 @@ fn get_game_state(game: &Game, winner: CellState) -> GameState {
 
 fn get_current_state(game: &Game) -> GameState {
     for tmp in 0..3 {
-        if get_cell_state(&game, tmp) != CellState::Empty && get_cell_state(&game, tmp) == get_cell_state(&game, tmp + 3)
+        if get_cell_state(&game, tmp) != CellState::Empty
+            && get_cell_state(&game, tmp) == get_cell_state(&game, tmp + 3)
             && get_cell_state(&game, tmp) == get_cell_state(&game, tmp + 6)
         {
             return get_game_state(game, get_cell_state(&game, tmp));
@@ -60,15 +61,19 @@ fn get_current_state(game: &Game) -> GameState {
 
         let tmp = tmp * 3;
 
-        if get_cell_state(&game, tmp) != CellState::Empty && get_cell_state(&game, tmp) == get_cell_state(&game, tmp + 1)
+        if get_cell_state(&game, tmp) != CellState::Empty
+            && get_cell_state(&game, tmp) == get_cell_state(&game, tmp + 1)
             && get_cell_state(&game, tmp) == get_cell_state(&game, tmp + 2)
         {
             return get_game_state(game, get_cell_state(&game, tmp));
         }
     }
 
-    if (get_cell_state(&game, 4) != CellState::Empty && get_cell_state(&game, 0) == get_cell_state(&game, 4) && get_cell_state(&game, 0) == get_cell_state(&game, 8))
-        || (get_cell_state(&game, 2) == get_cell_state(&game, 4) && get_cell_state(&game, 2) == get_cell_state(&game, 6))
+    if (get_cell_state(&game, 4) != CellState::Empty
+        && get_cell_state(&game, 0) == get_cell_state(&game, 4)
+        && get_cell_state(&game, 0) == get_cell_state(&game, 8))
+        || (get_cell_state(&game, 2) == get_cell_state(&game, 4)
+            && get_cell_state(&game, 2) == get_cell_state(&game, 6))
     {
         return get_game_state(game, get_cell_state(&game, 4));
     }
@@ -83,11 +88,7 @@ fn get_current_state(game: &Game) -> GameState {
 }
 
 fn get_next_game_id(env: &Env) -> u32 {
-    env
-    .data()
-    .get(GAME_COUNT)
-    .unwrap_or(Ok(0))
-    .unwrap()
+    env.data().get(GAME_COUNT).unwrap_or(Ok(0)).unwrap()
 }
 
 pub struct TicTacToeContract;
@@ -119,9 +120,7 @@ impl TicTacToeTrait for TicTacToeContract {
             );
 
             // increment num of games
-            env
-            .data()
-            .set(GAME_COUNT, game_id + 1);
+            env.data().set(GAME_COUNT, game_id + 1);
             return game_id;
         }
         panic!()
@@ -146,7 +145,6 @@ impl TicTacToeTrait for TicTacToeContract {
 
                     // Assert the invoker has the next turn of the game
                     assert_eq!(&address_id, &game.p_turn, "It's not your turn!");
-
 
                     let posit = game.board.get(pos).unwrap_or(Ok(CellState::X)).unwrap();
                     assert!(

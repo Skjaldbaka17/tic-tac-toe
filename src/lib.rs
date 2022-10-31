@@ -189,4 +189,5 @@ fn get_next_game_id(env: &Env) -> u32 {
     env.data().get(GAME_COUNT).unwrap_or(Ok(0)).unwrap()
 }
 
+#[cfg(test)]
 mod test;

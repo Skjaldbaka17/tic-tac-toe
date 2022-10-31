@@ -3,7 +3,7 @@
 extern crate std;
 
 use super::*;
-use soroban_sdk::{testutils::Accounts, Env};
+use soroban_sdk::{testutils::Accounts, Env, Address};
 
 #[test]
 fn test() {
@@ -15,7 +15,7 @@ fn test() {
     std::println!("challenger: {:?}", challenger);
     std::println!("opposition: {:?}", opposition);
 
-    let game_id = client.with_source_account(&challenger).create(&opposition);
+    let game_id = client.with_source_account(&challenger).create(&Address::Account(opposition.clone()));
     std::println!("Game Id: {}", game_id);
     for tmp in 0..3 {
         client.with_source_account(&challenger).play(&game_id, &tmp);
@@ -27,7 +27,7 @@ fn test() {
             );
             assert_eq!(
                 game_result.game_state,
-                GameState::Winner(challenger.clone()),
+                GameState::Winner(Address::Account(challenger.clone())),
                 "Challenger should've won"
             );
             std::println!("{:?}", game_result.board.clone());

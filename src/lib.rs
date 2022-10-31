@@ -1,15 +1,17 @@
 #![no_std]
 
-use soroban_sdk::{contractimpl, contracttype, symbol, vec, AccountId, Address, Env, Symbol, Vec};
+use soroban_sdk::{
+    contracterror, contractimpl, contracttype, panic_error, symbol, vec, Address, Env, Symbol, Vec,
+};
 
 const GAME_COUNT: Symbol = symbol!("GAME_COUNT");
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Game {
-    pub challenger: AccountId,
-    pub opposition: AccountId,
-    pub p_turn: AccountId, // Player's turn
+    pub challenger: Address,
+    pub opposition: Address,
+    pub p_turn: Address, // Player's turn
     pub board: Vec<CellState>,
     pub game_state: GameState,
 }
@@ -18,7 +20,7 @@ pub struct Game {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum GameState {
     InPlay,
-    Winner(AccountId),
+    Winner(Address),
     Draw,
 }
 
@@ -30,93 +32,96 @@ pub enum CellState {
     O,
 }
 
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[repr(u32)]
+pub enum Error {
+    GameDoesNotExist = 1,
+    GameFinito = 2,
+    NotYourTurn = 3,
+    InvalidPlay = 4,
+    NonPlayer = 5,
+}
+
 pub struct TicTacToeContract;
 
 pub trait TicTacToeTrait {
-    fn create(env: Env, opposition: AccountId) -> u32;
+    fn create(env: Env, opposition: Address) -> u32;
     fn play(env: Env, game_id: u32, pos: u32) -> bool;
     fn get_game(env: Env, game_id: u32) -> Game;
 }
 
 #[contractimpl]
 impl TicTacToeTrait for TicTacToeContract {
-    fn create(env: Env, opposition: AccountId) -> u32 {
-        // Check if invoker is an account (not a contract)
-        if let Address::Account(address_id) = env.invoker() {
-            let game_id = get_next_game_id(&env);
-            let new_board = get_empty_board(&env);
+    fn create(env: Env, opposition: Address) -> u32 {
+        let game_id = get_next_game_id(&env);
+        let new_board = get_empty_board(&env);
 
-            // Save new game to the chain
-            env.data().set(
-                game_id,
-                Game {
-                    challenger: address_id.clone(),
-                    opposition,
-                    board: new_board,
-                    p_turn: address_id.clone(),
-                    game_state: GameState::InPlay,
-                },
-            );
+        // Save new game to the chain
+        env.data().set(
+            game_id,
+            Game {
+                challenger: env.invoker(),
+                opposition: opposition.clone(),
+                board: new_board,
+                p_turn: env.invoker(),
+                game_state: GameState::InPlay,
+            },
+        );
 
-            // increment num of games
-            env.data().set(GAME_COUNT, game_id + 1);
-            return game_id;
-        }
-        panic!()
+        // increment num of games
+        env.data().set(GAME_COUNT, game_id + 1);
+        return game_id;
     }
 
     fn play(env: Env, game_id: u32, pos: u32) -> bool {
         assert!(pos <= 8, "Position supplied is not on board");
 
-        if let Address::Account(address_id) = env.invoker() {
-            match env.data().get::<_, Game>(game_id) {
-                None => {
-                    panic!("This game does not exist");
-                }
-                Some(w_game) => {
-                    let mut game = w_game.unwrap();
-
-                    // Assert the game is still "InPlay"
-                    assert!(
-                        game.game_state == GameState::InPlay,
-                        "This game is finished!"
-                    );
-
-                    // Assert the invoker has the next turn of the game
-                    assert_eq!(&address_id, &game.p_turn, "It's not your turn!");
-
-                    let posit = game.board.get(pos).unwrap_or(Ok(CellState::X)).unwrap();
-                    assert!(
-                        posit == CellState::Empty,
-                        "This play has already been made. {:?}",
-                        posit
-                    );
-
-                    if address_id.eq(&game.opposition) {
-                        game.board.set(pos, CellState::O); // Opposition is 'O'
-                        game.p_turn = game.challenger.clone();
-                    } else if address_id.eq(&game.challenger) {
-                        game.board.set(pos, CellState::X); // Challenger is 'X'
-                        game.p_turn = game.opposition.clone();
-                    } else {
-                        panic!()
-                    }
-
-                    game.game_state = get_current_state(&game);
-                    env.data().set(game_id, &game);
-
-                    return game.game_state != GameState::InPlay;
-                }
+        match env.data().get::<_, Game>(game_id) {
+            None => {
+                panic_error!(&env, Error::GameDoesNotExist)
             }
-        } else {
-            panic!();
+            Some(w_game) => {
+                let mut game = w_game.unwrap();
+
+                // Assert the game is still "InPlay"
+                if game.game_state != GameState::InPlay {
+                    panic_error!(&env, Error::GameFinito)
+                }
+
+                // Assert the invoker has the next turn of the game
+                if !env.invoker().eq(&game.p_turn) {
+                    panic_error!(&env, Error::NotYourTurn)
+                }
+
+                let posit = game.board.get(pos).unwrap_or(Ok(CellState::X)).unwrap();
+
+                if posit != CellState::Empty {
+                    panic_error!(&env, Error::InvalidPlay);
+                }
+
+                if env.invoker().eq(&game.opposition) {
+                    game.board.set(pos, CellState::O); // Opposition is 'O'
+                    game.p_turn = game.challenger.clone();
+                } else if env.invoker().eq(&game.challenger) {
+                    game.board.set(pos, CellState::X); // Challenger is 'X'
+                    game.p_turn = game.opposition.clone();
+                } else {
+                    panic_error!(&env, Error::NonPlayer)
+                }
+
+                game.game_state = get_current_state(&game);
+                env.data().set(game_id, &game);
+
+                return game.game_state != GameState::InPlay;
+            }
         }
     }
 
     fn get_game(env: Env, game_id: u32) -> Game {
         match env.data().get::<_, Game>(game_id) {
             None => {
-                panic!("This game does not exist");
+                panic_error!(&env, Error::GameDoesNotExist)
             }
             Some(game) => game.unwrap(),
         }
@@ -183,6 +188,5 @@ fn get_current_state(game: &Game) -> GameState {
 fn get_next_game_id(env: &Env) -> u32 {
     env.data().get(GAME_COUNT).unwrap_or(Ok(0)).unwrap()
 }
-
 
 mod test;
